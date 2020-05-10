@@ -1,0 +1,376 @@
+# rule of thumb: platform sets config, which drives select
+
+# platforms are for the UI, so spare the user need of passing lots of
+# args.
+
+# config_settings are for, well, configuration.
+
+# https://docs.bazel.build/versions/master/be/general.html#config_setting
+# a config_setting can have: constraint_values, values, define_values
+
+# a platform can have constraint_values only.  platforms set those
+# values; config_settings receive them, so to speak.
+
+# then we have skylark flags...
+
+# these config settings become available under this package, e.g.
+## @//config:cstd_c11 is set by --define cstd=c11
+
+package(default_visibility = ["//visibility:public"])
+
+# c dialect - https://gcc.gnu.org/onlinedocs/gcc/Standards.html#Standards
+
+# # c11
+# config_setting(name = "cstd_c11", values = { "define": "cstd=c11" })
+# config_setting(name="cstd_iso9899_2011",values={"define":"cstd=iso9899_2011"})
+
+# # c99
+# config_setting(name = "cstd_c99", values = {"define": "cstd=c99" })
+# config_setting(name="cstd_iso9899_1999",values={"cstd": "iso9899_1999"})
+# config_setting(name = "cstd_gnu99", values = { "cstd": "gnu99" })
+# # c90
+# config_setting(name = "cstd_c90", values = { "cstd": "c90" })
+# config_setting(name="cstd_iso9899_1990",values={"cstd":"iso9899_1990"})
+# config_setting(name = "cstd_gnu90", values = { "cstd": "gnu90" })
+# # ANSI
+# config_setting(name = "cstd_ansi", values = { "cstd": "ansi" })
+
+# # C++ dialect
+
+
+# # experimental: Grand Central Dispatch
+# config_setting(
+#     name = "enable_gcd",
+#     define_values = {
+#         "enable_gcd": "true",
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+
+# config_setting(name="enable_logging",values={"enable_logging":"true"})
+
+# # ipv6 is enabled by default and required for conformance
+# # this option allows developers to disable it for dev/testing
+# config_setting(name = "disable_ipv6",
+#                # visibility = ["//visibility:public"],
+#                define_values = {"disable_ipv6": "true"})
+
+# # ipv4 is disabled by default
+# config_setting(name = "enable_ipv4",
+#                # visibility = ["//visibility:public"],
+#                define_values = {"enable_ipv4": "true"})
+
+# # dtls is enabled by default and required for conformance
+# # this option allows developers to disable it for dev/testing
+# config_setting(name = "disable_dtls", # visibility = ["//visibility:public"],
+#                define_values = {"disable_dtls": "true"})
+
+# # tcp is officially supported but disabled by default, so use enable_tcp
+# config_setting(name = "enable_tcp",
+#                # visibility = ["//visibility:public"],
+#                define_values = {"enable_tcp": "true"})
+
+# # tls is on by default (if tcp is enabled)
+# config_setting(name = "disable_tls",
+#                # visibility = ["//visibility:public"],
+#                values = {"disable_tls": "true"})
+
+# config_setting(name = "enable_dtls_tls",
+#                # visibility = ["//visibility:public"],
+#                values = {"enable_dtls+tls": "true"})
+
+# config_setting(name = "with_ble",
+#                # visibility = ["//visibility:public"],
+#                values = {"with_ble": "true"})
+
+
+# config_setting(name="disable_security",values={"disable_security":"true"})
+
+# ################################################################
+# ####  Linux
+
+# # local
+# config_setting(
+#     name = "linux",
+#     values = { "host_cpu": "k8",
+#                "cpu": "k8"},
+#     # visibility = ["//visibility:public"]
+# )
+
+# # cross-compile
+# # config_setting(
+# #     name = "linux64",
+# #     values = {
+# #         "crosstool_top": "//tools/ctng:toolchain",
+# #         "cpu": "x86_64"
+# #     },
+# #     # visibility = ["//visibility:public"]
+# # )
+
+# ################################################################
+# ####  Darwin
+
+# config_setting(
+#     name = "darwin",
+#     values = { "host_cpu": "darwin",
+#                "cpu": "darwin"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+# config_setting(
+#     name = "darwin64",
+#     values = { # "host_cpu": "darwin_x86_64",
+#                "cpu": "darwin_x86_64" },
+#     # visibility = ["//visibility:public"]
+# )
+
+# ################################################################
+# ####  ios
+
+# # -target armv7-apple-ios
+
+# config_setting(
+#     name = "ios",
+#     values = {"cpu": "ios"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+# config_setting(
+#     name = "ios_arm7",
+#     values = {"cpu": "ios_armv7"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+# config_setting(
+#     name = "ios_arm64",
+#     values = {"cpu": "ios_arm64"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+
+# config_setting(
+#     name = "ios_i386",
+#     values = {"cpu": "ios_i386"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+
+# config_setting(
+#     name = "ios_x86",
+#     values = {"cpu": "ios_x86_64"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+
+# ################################################################
+# ####  Windows
+
+# config_setting( # toolchain: msys_x64_mingw
+#     name = "mingw",
+#     values = { "cpu": "x64_windows",
+#                "compiler": "mingw-gcc"},
+#     # visibility = ["//visibility:public"]
+# )
+# config_setting( # toolchain: msvc_x64
+#     name = "msvc",
+#     values = { "cpu": "x64_windows_msvc",
+#                "compiler": "msvc-cl"},
+#     # visibility = ["//visibility:public"]
+# )
+# config_setting( # toolchain: msys_x64
+#     name = "msys",
+#     values = { "cpu": "x64_windows_msys",
+#                "compiler": "msys-gcc"},
+#     # visibility = ["//visibility:public"]
+# )
+
+# ################################################################
+# ####  ARM
+
+# config_setting(
+#     name = "arm8",
+#      # values = { "crosstool_top": "//platforms/rpi3b:toolchain",
+#      #            "host_cpu": "darwin"},
+#      #            #"cpu": "armv8a"},
+#     define_values = {
+#         "arm8": "true"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+
+# ################################################################
+# ####  Raspberry Pi 3B
+
+# # build:rpi-arm8 --crosstool_top=//tools/ctng:toolchain
+# # build:rpi-arm8 --define arm=true
+# # build:rpi-arm8 --cpu=arm64-v8a
+
+# config_setting(
+#     name = "rpi_arm8",
+#     values = {
+#         "crosstool_top": "//tools/ctng:toolchain",
+#         "cpu": "arm64-v8a"
+#     },
+#     define_values = {
+#         "arm": "true"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+
+# ################################################################
+# ####  Java
+
+# config_setting(
+#     name = "darwin_with_jni",
+#     values = {"host_cpu": "darwin",
+# #              "cpu": "armeabi-v7a",
+# #              "fat_apk_cpu": "x86_64"
+# #              "java_deps": "true"
+#               "host_java_toolchain": "@bazel_tools//tools/jdk:toolchain"
+#     },
+#     # define_values = {
+#     #     "with_jni": "true"
+#     # },
+#     # visibility = ["//visibility:public"]
+# )
+
+# config_setting(
+#     name = "linux_with_jni",
+#     values = {"host_cpu": "k8",
+#               #"cpu": "armeabi-v7a",
+#               "host_java_toolchain": "@bazel_tools//tools/jdk:toolchain"
+#     },
+#     # visibility = ["//visibility:public"]
+# )
+
+# ################################################################
+# #### ANDROID
+# # see https://developer.android.com/ndk/guides/abis
+# # fat_apk_cpu values: armeabi, armeabi-v7a, arm64-v8a, mips, mips64, x86, x86_64
+
+# config_setting(name = "android", # visibility = ["//visibility:public"],
+#                define_values = {"android": "true" })
+
+# config_setting(
+#     name = "android_arm7",
+#     # values = {
+#     #     "cpu": "armeabi-v7a",
+#     #     #"fat_apk_cpu": "armeabi-v7a",
+#     #     "android_cpu": "armeabi-v7a",
+#     #     #"android_crosstool_top": "//external:android/crosstool",
+#     #     #"android_sdk": "@bazel_tools//tools/android:sdk"
+#     # },
+#     define_values = { "android": "true",
+#                       "android_arm7": "true"},
+#     # visibility = ["//visibility:public"]
+# )
+
+# # it appears that config settings vary by build target.
+# # if the target is android_binary one thing happens, if it is cc_* something else happens,
+
+# # for android_binary:
+# config_setting(
+#     name = "android_arm8",
+#     define_values = { "android": "true",
+#                       "android_arm8": "true"},
+#     # visibility = ["//visibility:public"]
+# )
+
+# config_setting(
+#     name = "android_x86",
+#     # values = {
+#     #     #"fat_apk_cpu": "x86",
+#     #     # passing --fat_apk_cpu=x86 sets android_cpu?
+#     #     "cpu": "x86",
+#     #     "android_cpu": "x86",
+#     #     #"android_crosstool_top": "//external:android/crosstool",
+#     #     #"android_sdk": "@bazel_tools//tools/android:sdk"
+#     # },
+#     define_values = { "android": "true",
+#                       "android_x86": "true"},
+#     # visibility = ["//visibility:public"]
+# )
+
+# config_setting(
+#     name = "android_x86_64",
+#     # values = {
+#     #     #"fat_apk_cpu": "x86",
+#     #     # passing --fat_apk_cpu=x86 sets android_cpu?
+#     #     "cpu": "x86_64",
+#     #     "android_cpu": "x86_64",
+#     #     #"android_crosstool_top": "//external:android/crosstool",
+#     #     #"android_sdk": "@bazel_tools//tools/android:sdk"
+#     # },
+#     define_values = { "android": "true",
+#                       "android_x86_64": "true"},
+#     # visibility = ["//visibility:public"]
+# )
+
+# ################################################################
+# ####  Debugging
+
+# config_setting(
+#     name = "debug_threads",
+#     # visibility = ["//visibility:public"],
+#     define_values = { "debug_threads": "true"}
+# )
+
+# config_setting(
+#     name = "debug_msgs",
+#     # visibility = ["//visibility:public"],
+#     define_values = { "debug_msgs": "true"}
+# )
+
+# config_setting(
+#     name = "debug_payload",
+#     # visibility = ["//visibility:public"],
+#     define_values = { "debug_payload": "true"}
+# )
+
+# config_setting(
+#     name = "debug_tls",
+#     # visibility = ["//visibility:public"],
+#     define_values = { "debug_tls": "true"}
+# )
+
+# # load("//platform:rules.bzl", "arch_opt")
+
+# # arch_opt(
+# #     name="arch",
+# #     build_setting_default = "x86_64"
+# # )
+
+constraint_setting(name = "glibc_version")
+constraint_value(constraint_setting = ":glibc_version",
+                 name = "glibc_2_25")
+constraint_value(constraint_setting = ":glibc_version",
+                 name = "glibc_2_26")
+
+config_setting(
+    name = "x86_64-unknown-linux-gnu",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    # flag_values = {
+    #     "//platform:arch": "arm"
+    # }
+)
+
+config_setting(
+    name = "armv8-rpi3-linux-gnueabihf",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm",
+    ],
+    # flag_values = {
+    #     "//platform:arch": "arm"
+    # }
+)
+
+# usage:
+    # copts = select({
+    #     "//config:x86_64-unknown-linux-gnu": ["--foobar"],
+    #     "//config:armv8-rpi3-linux-gnueabihf": ["--armv8"],
+    #     "//conditions:default": ["--baz"]
+    # }) + CFLAGS,

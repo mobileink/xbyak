@@ -1,6 +1,37 @@
-[![Build Status](https://travis-ci.org/herumi/xbyak.png)](https://travis-ci.org/herumi/xbyak)
+# bazelized Xbyak
 
-# Xbyak 5.91 ; JIT assembler for x86(IA32), x64(AMD64, x86-64) by C++
+This is a fork; it adds support for [Bazel]() builds. No other
+changes.
+
+* list all targets: `$ bazel query 'attr(visibility, "//visibility:public", //...:all)'`
+* build all: `$ bazel build //...:all`
+* build and run a target: `$ bazel run //sample:test`
+
+**Cross-compilation**
+
+Under development on MacOS, targeting Linux. There are still a couple
+of bugs to be resolved, and the code needs to be generalized so it
+does not depend on my particular system configuration, but if you want
+try it you should be able to figure out the changes you need to
+support your toolchain.  Suggestions welcome.
+
+The current code is based on a toolchain built on MacOS using
+[crosstoolNG](https://crosstool-ng.github.io/); to try it out you will
+have to adjust the code accordingly:
+
+* toolchains/linux_tc.BUILD: set the TARGET variable for your toolchain and edit the `srcs` attributes accordingly
+* toolchains/ctng_xc_toolchain_config.bzl: edit vars `ctng_root` and `tool_prefix`; adjust paths, flags, etc.
+
+To cross-build:
+
+* uncomment the `build:linux` directives in `.bazelrc`
+* `$ bazel build --spawn_strategy local --config=linux //sample:test`
+
+This will use the x86_64-unknown-linux-gnu toolchain to build ELF
+files.
+
+
+**Original readme:**
 
 ## Abstract
 
