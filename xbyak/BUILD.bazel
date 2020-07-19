@@ -1,0 +1,10 @@
+cc_library(
+    name = "xbyak",
+    visibility = ["//visibility:public"],
+    hdrs = [
+        "xbyak.h",
+        "xbyak_bin2hex.h",
+        "xbyak_mnemonic.h",
+        "xbyak_util.h"
+    ]
+)

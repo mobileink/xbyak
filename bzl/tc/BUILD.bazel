@@ -1,0 +1,193 @@
+package(default_visibility = ["//visibility:public"])
+
+# load("@rules_cc//cc:defs.bzl", "cc_toolchain_suite")
+
+load("//bzl/tc:ctng_tc.bzl",
+     "ctng_toolchain_config",
+     "ctng_home",
+     "ctng_triplet"
+)
+
+load("//bzl/tc:musl_tc.bzl",
+     "musl_toolchain_config",
+     "musl_home",
+     "musl_triplet"
+)
+
+
+ctng_home( name="ctng_home", build_setting_default = "/")
+ctng_triplet( name="ctng_triplet", build_setting_default = "")
+
+# @local_config_platform is autodetecting host platform and generating relevant
+# constraints.
+# load("@local_config_platform//:constraints.bzl", "HOST_CONSTRAINTS")
+
+# Toolchain type is used to distinguish toolchains per languages.
+#
+# By convention, toolchain_type targets are named "toolchain_type" and
+# distinguished by their package path. So the full path for this would be
+# //yolo:toolchain_type.
+# toolchain_type(name = "toolchain_typex")
+
+# remember: lazy eval. the toolchain and its config will only be
+# evaluated (instantiated) if it is "selected" by --cpu
+
+# cc_toolchain_suite(
+#     name = "linux",
+#     toolchains = {
+#         "x86_64": ":linux_toolchainXXX",
+#         # temporary, to prevent error on 'build //...:all'
+#         "darwin": ":linux_toolchain",
+#     },
+# )
+
+################################################################
+##  mac to linux toolchain
+
+# models command-line stuf
+ctng_toolchain_config(name = "mac_to_linux_toolchain_config",
+                      ctng_triplet = ":ctng_triplet",
+                      ctng_home = ":ctng_home")
+
+cc_toolchain(
+    name = "_mac_to_linux_toolchain",
+    # command line model:
+    toolchain_config = ":mac_to_linux_toolchain_config",
+    # file deps:
+    all_files = "@ctng//:all",
+    compiler_files = "@ctng//:compiler",
+    linker_files = "@ctng//:linker",
+    dwp_files = ":empty",
+    objcopy_files = ":empty",
+    strip_files = ":empty",
+    supports_param_files = 0,
+)
+
+# Toolchain that executes on macos, targeting linux
+toolchain(
+    name = "mac_to_linux_toolchain",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        # "@platforms//cpu:arm",
+    ],
+    toolchain = ":_mac_to_linux_toolchain",
+    # toolchain_type = ":toolchain_typex",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type"
+)
+
+################################################################
+##  rpi3 toolchain
+# models command-line stuf
+ctng_toolchain_config(name = "rpi3_toolchain_config",
+                      ctng_triplet = ":ctng_triplet",
+                      ctng_home = ":ctng_home")
+
+# a toolchain definition, referred to by a tc declaration
+# the name "cc_toolchain" is arbitrary
+cc_toolchain(
+    name = "_rpi3_toolchain",
+    # command line model:
+    toolchain_config = ":rpi3_toolchain_config",
+    # file deps:
+    all_files = "@ctng//:all",
+    compiler_files = "@ctng//:compiler",
+    linker_files = "@ctng//:linker",
+    dwp_files = ":empty",
+    objcopy_files = ":empty",
+    strip_files = ":empty",
+    supports_param_files = 0,
+)
+
+# a TC declaration; refers to defn
+toolchain(
+    name = "armv8-rpi3-linux-gnueabihf",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+        # ":yolo_lang_1",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm",
+    ],
+    toolchain = ":_rpi3_toolchain", # s/b: toolchain_definition or _impl
+    # toolchain_type = ":toolchain_typex",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type"
+)
+
+################################################################
+##  musl toolchain
+##
+
+musl_home( name="musl_home", build_setting_default = "/")
+musl_triplet( name="musl_triplet", build_setting_default = "")
+
+# @local_config_platform is autodetecting host platform and generating relevant
+# constraints.
+# load("@local_config_platform//:constraints.bzl", "HOST_CONSTRAINTS")
+
+# Toolchain type is used to distinguish toolchains per languages.
+#
+# By convention, toolchain_type targets are named "toolchain_type" and
+# distinguished by their package path. So the full path for this would be
+# //yolo:toolchain_type.
+# toolchain_type(name = "toolchain_typex")
+
+# remember: lazy eval. the toolchain and its config will only be
+# evaluated (instantiated) if it is "selected" by --cpu
+
+# cc_toolchain_suite(
+#     name = "linux",
+#     toolchains = {
+#         "x86_64": ":linux_toolchainXXX",
+#         # temporary, to prevent error on 'build //...:all'
+#         "darwin": ":linux_toolchain",
+#     },
+# )
+
+################################################################
+##  mac to linux toolchain
+
+# models command-line stuf
+musl_toolchain_config(name = "musl_toolchain_config",
+                      musl_triplet = ":musl_triplet",
+                      musl_home = ":musl_home")
+
+cc_toolchain(
+    name = "_musl_toolchain",
+    # command line model:
+    toolchain_config = ":musl_toolchain_config",
+    # file deps:
+    all_files = "@musl//:all",
+    compiler_files = "@musl//:all",
+    linker_files = "@musl//:all", # linker",
+    dwp_files = ":empty",
+    objcopy_files = "@musl//:all",
+    strip_files = "@musl//:all",
+    supports_param_files = 0,
+)
+
+# Toolchain that executes on macos, targeting linux
+toolchain(
+    name = "musl_toolchain",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":clib_musl"
+    ],
+    toolchain = ":_musl_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type"
+)
+
+constraint_setting(name = "c_lib")
+
+constraint_value(
+    name = "clib_musl",
+    constraint_setting = ":c_lib",
+)
