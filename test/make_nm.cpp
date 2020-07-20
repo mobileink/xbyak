@@ -1,5 +1,4 @@
 #include <stdio.h>
-#define XBYAK_NO_OP_NAMES
 #include "xbyak/xbyak.h"
 #include "xbyak/xbyak_bin2hex.h"
 #include <stdlib.h>
@@ -458,6 +457,16 @@ class Test {
 #ifdef XBYAK64
 			"cdqe",
 			"cqo",
+			"cmpsq",
+			"movsq",
+			"popfq",
+			"pushfq",
+			"lodsq",
+			"movsq",
+			"scasq",
+			"stosq",
+			"syscall",
+			"sysret",
 #else
 			"aaa",
 			"aad",
@@ -465,6 +474,7 @@ class Test {
 			"aas",
 			"daa",
 			"das",
+			"into",
 			"popad",
 			"popfd",
 			"pusha",
@@ -486,12 +496,34 @@ class Test {
 
 			"lahf",
 //			"lock",
+			"cmpsb",
+			"cmpsw",
+			"cmpsd",
+			"int3",
+			"leave",
+			"lodsb",
+			"lodsw",
+			"lodsd",
+			"movsb",
+			"movsw",
+			"movsd",
+			"outsb",
+			"outsw",
+			"outsd",
+			"scasb",
+			"scasw",
+			"scasd",
+			"stosb",
+			"stosw",
+			"stosd",
 			"nop",
 
 			"sahf",
 			"stc",
 			"std",
 			"sti",
+			"sysenter",
+			"sysexit",
 
 			"emms",
 			"pause",
@@ -524,6 +556,8 @@ class Test {
 			"fabs",
 			"faddp",
 			"fchs",
+			"fclex",
+			"fnclex",
 			"fcom",
 			"fcomp",
 			"fcompp",
@@ -563,15 +597,52 @@ class Test {
 			"fxtract",
 			"fyl2x",
 			"fyl2xp1",
+
+			"monitorx",
+			"mwaitx",
+			"clzero",
 		};
 		for (size_t i = 0; i < NUM_OF_ARRAY(tbl); i++) {
 			put(tbl[i]);
 		}
+		{
+			const char memTbl[][16] = {
+				"clflush",
+				"clflushopt",
+				"fbld",
+				"fbstp",
+				"fldcw",
+				"fldenv",
+				"frstor",
+				"fsave",
+				"fnsave",
+				"fstcw",
+				"fnstcw",
+				"fstenv",
+				"fnstenv",
+				"fstsw",
+				"fnstsw",
+				"fxrstor",
+			};
+			for (size_t i = 0; i < NUM_OF_ARRAY(memTbl); i++) {
+				put(memTbl[i], MEM);
+			}
+			put("fstsw", AX);
+			put("fnstsw", AX);
+		}
 
 		put("bswap", REG32e);
 		put("lea", REG32e|REG16, MEM);
-		put("fldcw", MEM);
-		put("fstcw", MEM);
+		put("enter", IMM, IMM);
+		put(isXbyak_ ? "int_" : "int", IMM8);
+		put(isXbyak_ ? "in_" : "in", AL|AX|EAX, IMM8);
+		puts(isXbyak_ ? "in_(al, dx); dump();" : "in al, dx");
+		puts(isXbyak_ ? "in_(ax, dx); dump();" : "in ax, dx");
+		puts(isXbyak_ ? "in_(eax, dx); dump();" : "in eax, dx");
+		put(isXbyak_ ? "out_" : "out", IMM8, AL|AX|EAX);
+		puts(isXbyak_ ? "out_(dx, al); dump();" : "out dx, al");
+		puts(isXbyak_ ? "out_(dx, ax); dump();" : "out dx, ax");
+		puts(isXbyak_ ? "out_(dx, eax); dump();" : "out dx, eax");
 	}
 	void putJmp() const
 	{
@@ -825,7 +896,7 @@ class Test {
 			for (size_t j = 0; j < NUM_OF_ARRAY(sufTbl); j++) {
 				if (!(p->mode & (1 << j))) continue;
 				char buf[16];
-				sprintf(buf, "%s%s", p->name, sufTbl[j].name);
+				snprintf(buf, sizeof(buf), "%s%s", p->name, sufTbl[j].name);
 				if (p->hasImm) {
 					put(buf, XMM, XMM|MEM, IMM);
 				} else {
@@ -912,7 +983,9 @@ class Test {
 	}
 	void putCmov() const
 	{
-		const char tbl[][4] = {
+		const struct {
+			const char *s;
+		} tbl[] = {
 			"o",
 			"no",
 			"b",
@@ -945,12 +1018,12 @@ class Test {
 			"g",
 		};
 		for (size_t i = 0; i < NUM_OF_ARRAY(tbl); i++) {
-			char buf[16];
-			sprintf(buf, "cmov%s", tbl[i]);
+			char buf[32];
+			snprintf(buf, sizeof(buf), "cmov%s", tbl[i].s);
 			put(buf, REG16, REG16|MEM);
 			put(buf, REG32, REG32|MEM);
 			put(buf, REG64, REG64|MEM);
-			sprintf(buf, "set%s", tbl[i]);
+			snprintf(buf, sizeof(buf), "set%s", tbl[i].s);
 			put(buf, REG8|REG8_3|MEM);
 		}
 	}
@@ -1054,15 +1127,19 @@ class Test {
 			push word 2
 			reduce 2-byte stack, so I can't support it
 		*/
-		const char *p = "push";
-		put(p, REG16);
-		put(p, IMM8); // IMM16 decrease -2 from esp
-		put(p, MEM16);
 
+		put("push", IMM8|IMM32);
+		if (isXbyak_) {
+			puts("push(word, 1000);dump();");
+		} else {
+			puts("push word 1000");
+		}
+
+		put("push", REG16|MEM16);
 		put("pop", REG16|MEM16);
 #ifdef XBYAK64
-		put("push", REG64);
-		put("pop", REG64);
+		put("push", REG64|IMM32|MEM64);
+		put("pop", REG64|MEM64);
 #else
 		put("push", REG32|IMM32|MEM32);
 		put("pop", REG32|MEM32);
@@ -1099,6 +1176,30 @@ class Test {
 		};
 		for (size_t i = 0; i < NUM_OF_ARRAY(tbl); i++) {
 			put("mov", REG64, tbl[i].a, tbl[i].b);
+		}
+	}
+	void putLoadSeg() const
+	{
+		const struct Tbl {
+			const char *name;
+			bool support64Bit;
+		} tbl[] = {
+#ifdef XBYAK32
+			{ "lds", false },
+			{ "les", false },
+#endif
+			{ "lss", true },
+			{ "lfs", true },
+			{ "lgs", true },
+		};
+		for (size_t i = 0; i < NUM_OF_ARRAY(tbl); i++) {
+			const Tbl *p = &tbl[i];
+			put(p->name, REG16|REG32, MEM);
+#ifdef XBYAK64
+			if (p->support64Bit) {
+				put(p->name, REG64, MEM);
+			}
+#endif
 		}
 	}
 	// only nasm
@@ -1156,6 +1257,7 @@ class Test {
 		put("cmpxchg8b", MEM);
 #ifdef XBYAK64
 		put("cmpxchg16b", MEM);
+		put("fxrstor64", MEM);
 #endif
 		{
 			const char tbl[][8] = {
@@ -2403,6 +2505,7 @@ public:
 		putPushPop();
 		putTest();
 		separateFunc();
+		putLoadSeg();
 		putEtc();
 		putShift();
 		putShxd();
@@ -2427,7 +2530,6 @@ public:
 		putFpuMem32_64();
 		separateFunc();
 		putFpuMem16_32_64();
-		put("clflush", MEM); // current nasm is ok
 		putFpu();
 		putFpuFpu();
 		putCmp();
@@ -2526,7 +2628,7 @@ public:
 			printf("vaddpd(%s%s%s, %s, %s%s); dump();\n", r1, pk, pz, r2, r3, saeTblXbyak[sae]);
 		} else {
 			if (kIdx) CYBOZU_SNPRINTF(pk, sizeof(pk), "{k%d}", kIdx);
-			if (z) pz = "{z}";
+			if (z && kIdx) pz = "{z}";
 			printf("vaddpd %s%s%s, %s, %s%s\n", r1, pk, pz, r2, r3, saeTblNASM[sae]);
 		}
 	}
@@ -2563,9 +2665,9 @@ public:
 				for (size_t k = 0; k < N; k++) {
 #ifdef XBYAK64
 					for (int kIdx = 0; kIdx < 8; kIdx++) {
+						put_vaddpd(xTbl[i], xTbl[j], xTbl[k], kIdx);
+						put_vaddpd(yTbl[i], yTbl[j], yTbl[k], kIdx);
 						for (int z = 0; z < 2; z++) {
-							put_vaddpd(xTbl[i], xTbl[j], xTbl[k], kIdx, z == 1);
-							put_vaddpd(yTbl[i], yTbl[j], yTbl[k], kIdx, z == 1);
 							for (int sae = 0; sae < 5; sae++) {
 								put_vaddpd(zTbl[i], zTbl[j], zTbl[k], kIdx, z == 1, sae);
 							}

@@ -77,7 +77,7 @@ public:
 #ifdef XBYAK_VARIADIC_TEMPLATE
 		call(atoi);
 #else
-		call(Xbyak::CastTo<void*>(atoi));
+		call(reinterpret_cast<const void*>(atoi));
 #endif
 		add(esp, 4);
 #endif
@@ -96,7 +96,7 @@ public:
 		mov(rax, (size_t)atoi);
 		jmp(rax);
 #else
-		jmp(Xbyak::CastTo<void*>(atoi));
+		jmp(reinterpret_cast<const void*>(atoi));
 #endif
 	}
 	int (*get() const)(const char *) { return getCode<int (*)(const char *)>(); }
@@ -162,18 +162,22 @@ int main()
 		{
 			// use memory allocated by user
 			using namespace Xbyak;
-			const size_t codeSize = 1024;
+			const size_t codeSize = 4096;
 			uint8 buf[codeSize + 16];
 			uint8 *p = CodeArray::getAlignedAddress(buf);
-			CodeArray::protect(p, codeSize, true);
 			Sample s(p, codeSize);
+			if (!CodeArray::protect(p, codeSize, CodeArray::PROTECT_RWE)) {
+				fprintf(stderr, "can't protect\n");
+				return 1;
+			}
 			int (*func)(int) = s.getCode<int (*)(int)>();
-			if (Xbyak::CastTo<uint8*>(func) != p) {
-				fprintf(stderr, "internal error %p %p\n", p, Xbyak::CastTo<uint8*>(func));
+			const uint8 *funcp = reinterpret_cast<const uint8*>(func);
+			if (funcp != p) {
+				fprintf(stderr, "internal error %p %p\n", p, funcp);
 				return 1;
 			}
 			printf("0 + ... + %d = %d\n", 100, func(100));
-			CodeArray::protect(p, codeSize, false);
+			CodeArray::protect(p, codeSize, CodeArray::PROTECT_RW);
 		}
 		puts("OK");
 		testReset();

@@ -36,6 +36,8 @@
 		T_B32 = 1 << 26, // m32bcst
 		T_B64 = 1 << 27, // m64bcst
 		T_M_K = 1 << 28, // mem{k}
+		T_VSIB = 1 << 29,
+		T_MEM_EVEX = 1 << 30, // use evex if mem
 		T_XXX
 	};
 
@@ -155,6 +157,14 @@ std::string type2String(int type)
 	if (type & T_M_K) {
 		if (!str.empty()) str += " | ";
 		str += "T_M_K";
+	}
+	if (type & T_VSIB) {
+		if (!str.empty()) str += " | ";
+		str += "T_VSIB";
+	}
+	if (type & T_MEM_EVEX) {
+		if (!str.empty()) str += " | ";
+		str += "T_MEM_EVEX";
 	}
 	return str;
 }

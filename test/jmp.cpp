@@ -205,6 +205,41 @@ CYBOZU_TEST_AUTO(testJmpCx)
 	}
 }
 
+CYBOZU_TEST_AUTO(loop)
+{
+	const uint8 ok[] = {
+		// lp:
+		0x31, 0xC0, // xor eax, eax
+		0xE2, 0xFC, // loop lp
+		0xE0, 0xFA, // loopne lp
+		0xE1, 0xF8, // loope lp
+	};
+	struct Code : CodeGenerator {
+		Code(bool useLabel)
+		{
+			if (useLabel) {
+				Xbyak::Label lp = L();
+				xor_(eax, eax);
+				loop(lp);
+				loopne(lp);
+				loope(lp);
+			} else {
+				L("@@");
+				xor_(eax, eax);
+				loop("@b");
+				loopne("@b");
+				loope("@b");
+			}
+		}
+	};
+	Code code1(false);
+	CYBOZU_TEST_EQUAL(code1.getSize(), sizeof(ok));
+	CYBOZU_TEST_EQUAL_ARRAY(code1.getCode(), ok, sizeof(ok));
+	Code code2(true);
+	CYBOZU_TEST_EQUAL(code2.getSize(), sizeof(ok));
+	CYBOZU_TEST_EQUAL_ARRAY(code2.getCode(), ok, sizeof(ok));
+}
+
 #ifdef _MSC_VER
 	#pragma warning(disable : 4310)
 #endif
@@ -393,6 +428,7 @@ CYBOZU_TEST_AUTO(test4)
 	}
 }
 
+#ifndef __APPLE__
 CYBOZU_TEST_AUTO(test5)
 {
 	struct Test5 : Xbyak::CodeGenerator {
@@ -440,6 +476,7 @@ CYBOZU_TEST_AUTO(test5)
 	gm.assign((const char*)gc.getCode(), gc.getSize());
 	CYBOZU_TEST_EQUAL(fm, gm);
 }
+#endif
 
 size_t getValue(const uint8* p)
 {
@@ -889,6 +926,34 @@ CYBOZU_TEST_AUTO(testNewLabel)
 	}
 }
 
+CYBOZU_TEST_AUTO(returnLabel)
+{
+	struct Code : Xbyak::CodeGenerator {
+		Code()
+		{
+			xor_(eax, eax);
+		Label L1 = L();
+			test(eax, eax);
+			Label exit;
+			jnz(exit);
+			inc(eax); // 1
+			Label L2;
+			call(L2);
+			jmp(L1);
+		L(L2);
+			inc(eax); // 2
+			ret();
+		L(exit);
+			inc(eax); // 3
+			ret();
+		}
+	};
+	Code code;
+	int (*f)() = code.getCode<int (*)()>();
+	int r = f();
+	CYBOZU_TEST_EQUAL(r, 3);
+}
+
 CYBOZU_TEST_AUTO(testAssign)
 {
 	struct Code : Xbyak::CodeGenerator {
@@ -986,6 +1051,52 @@ struct GetAddressCode1 : Xbyak::CodeGenerator {
 		CYBOZU_TEST_EQUAL_POINTER(L3.getAddress(), p1);
 	}
 };
+
+struct CodeLabelTable : Xbyak::CodeGenerator {
+	enum { ret0 = 3 };
+	enum { ret1 = 5 };
+	enum { ret2 = 8 };
+	CodeLabelTable()
+	{
+		using namespace Xbyak;
+#ifdef XBYAK64_WIN
+		const Reg64& p0 = rcx;
+		const Reg64& a = rax;
+#elif defined (XBYAK64_GCC)
+		const Reg64& p0 = rdi;
+		const Reg64& a = rax;
+#else
+		const Reg32& p0 = edx;
+		const Reg32& a = eax;
+		mov(edx, ptr [esp + 4]);
+#endif
+		Label labelTbl, L0, L1, L2;
+		mov(a, labelTbl);
+		jmp(ptr [a + p0 * sizeof(void*)]);
+	L(labelTbl);
+		putL(L0);
+		putL(L1);
+		putL(L2);
+	L(L0);
+		mov(a, ret0);
+		ret();
+	L(L1);
+		mov(a, ret1);
+		ret();
+	L(L2);
+		mov(a, ret2);
+		ret();
+	}
+};
+
+CYBOZU_TEST_AUTO(LabelTable)
+{
+	CodeLabelTable c;
+	int (*f)(int) = c.getCode<int (*)(int)>();
+	CYBOZU_TEST_EQUAL(f(0), c.ret0);
+	CYBOZU_TEST_EQUAL(f(1), c.ret1);
+	CYBOZU_TEST_EQUAL(f(2), c.ret2);
+}
 
 CYBOZU_TEST_AUTO(getAddress1)
 {
@@ -1108,11 +1219,11 @@ CYBOZU_TEST_AUTO(rip_jmp)
 	CYBOZU_TEST_EQUAL(ret, ret1234() + ret9999());
 }
 
-#ifdef XBYAK64_GCC
+#if 0
 CYBOZU_TEST_AUTO(rip_addr)
 {
 	/*
-		assume |&x - &code| < 2GiB
+		we can't assume |&x - &code| < 2GiB anymore
 	*/
 	static int x = 5;
 	struct Code : Xbyak::CodeGenerator {
@@ -1127,6 +1238,8 @@ CYBOZU_TEST_AUTO(rip_addr)
 	CYBOZU_TEST_EQUAL(x, 123);
 }
 #endif
+
+#ifndef __APPLE__
 CYBOZU_TEST_AUTO(rip_addr_with_fixed_buf)
 {
 	MIE_ALIGN(4096) static char buf[8192];
@@ -1143,10 +1256,130 @@ CYBOZU_TEST_AUTO(rip_addr_with_fixed_buf)
 			ret();
 		}
 	} code;
-	Xbyak::CodeArray::protect(p, 4096, true);
+	code.setProtectModeRE();
 	code.getCode<void (*)()>()();
 	CYBOZU_TEST_EQUAL(*x0, 123);
 	CYBOZU_TEST_EQUAL(*x1, 456);
 	CYBOZU_TEST_EQUAL(buf[8], 99);
+	code.setProtectModeRW();
 }
 #endif
+#endif
+
+struct ReleaseTestCode : Xbyak::CodeGenerator {
+	ReleaseTestCode(Label& L1, Label& L2, Label& L3)
+	{
+		L(L1);
+		jmp(L1);
+		L(L2);
+		jmp(L3); // not assigned
+	}
+};
+
+/*
+	code must unlink label if code is destroyed
+*/
+CYBOZU_TEST_AUTO(release_label_after_code)
+{
+	puts("---");
+	{
+		Label L1, L2, L3, L4, L5;
+		{
+			ReleaseTestCode code(L1, L2, L3);
+			CYBOZU_TEST_ASSERT(L1.getId() > 0);
+			CYBOZU_TEST_ASSERT(L1.getAddress() != 0);
+			CYBOZU_TEST_ASSERT(L2.getId() > 0);
+			CYBOZU_TEST_ASSERT(L2.getAddress() != 0);
+			CYBOZU_TEST_ASSERT(L3.getId() > 0);
+			CYBOZU_TEST_ASSERT(L3.getAddress() == 0); // L3 is not assigned
+			code.assignL(L4, L1);
+			L5 = L1;
+			printf("id=%d %d %d %d %d\n", L1.getId(), L2.getId(), L3.getId(), L4.getId(), L5.getId());
+		}
+		puts("code is released");
+		CYBOZU_TEST_ASSERT(L1.getId() == 0);
+		CYBOZU_TEST_ASSERT(L1.getAddress() == 0);
+		CYBOZU_TEST_ASSERT(L2.getId() == 0);
+		CYBOZU_TEST_ASSERT(L2.getAddress() == 0);
+//		CYBOZU_TEST_ASSERT(L3.getId() == 0); // L3 is not assigned so not cleared
+		CYBOZU_TEST_ASSERT(L3.getAddress() == 0);
+		CYBOZU_TEST_ASSERT(L4.getId() == 0);
+		CYBOZU_TEST_ASSERT(L4.getAddress() == 0);
+		CYBOZU_TEST_ASSERT(L5.getId() == 0);
+		CYBOZU_TEST_ASSERT(L5.getAddress() == 0);
+		printf("id=%d %d %d %d %d\n", L1.getId(), L2.getId(), L3.getId(), L4.getId(), L5.getId());
+	}
+}
+
+struct JmpTypeCode : Xbyak::CodeGenerator {
+	void nops()
+	{
+		for (int i = 0; i < 130; i++) {
+			nop();
+		}
+	}
+	// return jmp code size
+	size_t gen(bool pre, bool large, Xbyak::CodeGenerator::LabelType type)
+	{
+		Label label;
+		if (pre) {
+			L(label);
+			if (large) nops();
+			size_t pos = getSize();
+			jmp(label, type);
+			return getSize() - pos;
+		} else {
+			size_t pos = getSize();
+			jmp(label, type);
+			size_t size = getSize() - pos;
+			if (large) nops();
+			L(label);
+			return size;
+		}
+	}
+};
+
+CYBOZU_TEST_AUTO(setDefaultJmpNEAR)
+{
+	const Xbyak::CodeGenerator::LabelType T_SHORT = Xbyak::CodeGenerator::T_SHORT;
+	const Xbyak::CodeGenerator::LabelType T_NEAR = Xbyak::CodeGenerator::T_NEAR;
+	const Xbyak::CodeGenerator::LabelType T_AUTO = Xbyak::CodeGenerator::T_AUTO;
+	const struct {
+		bool pre;
+		bool large;
+		Xbyak::CodeGenerator::LabelType type;
+		size_t expect1; // 0 means exception
+		size_t expect2;
+	} tbl[] = {
+		{ false, false, T_SHORT, 2, 2 },
+		{ false, false, T_NEAR, 5, 5 },
+		{ false, true, T_SHORT, 0, 0 },
+		{ false, true, T_NEAR, 5, 5 },
+
+		{ true, false, T_SHORT, 2, 2 },
+		{ true, false, T_NEAR, 5, 5 },
+		{ true, true, T_SHORT, 0, 0 },
+		{ true, true, T_NEAR, 5, 5 },
+
+		{ false, false, T_AUTO, 2, 5 },
+		{ false, true, T_AUTO, 0, 5 },
+		{ true, false, T_AUTO, 2, 2 },
+		{ true, true, T_AUTO, 5, 5 },
+	};
+	JmpTypeCode code1, code2;
+	code2.setDefaultJmpNEAR(true);
+	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
+		if (tbl[i].expect1) {
+			size_t size = code1.gen(tbl[i].pre, tbl[i].large, tbl[i].type);
+			CYBOZU_TEST_EQUAL(size, tbl[i].expect1);
+		} else {
+			CYBOZU_TEST_EXCEPTION(code1.gen(tbl[i].pre, tbl[i].large, tbl[i].type), std::exception);
+		}
+		if (tbl[i].expect2) {
+			size_t size = code2.gen(tbl[i].pre, tbl[i].large, tbl[i].type);
+			CYBOZU_TEST_EQUAL(size, tbl[i].expect2);
+		} else {
+			CYBOZU_TEST_EXCEPTION(code2.gen(tbl[i].pre, tbl[i].large, tbl[i].type), std::exception);
+		}
+	}
+}
