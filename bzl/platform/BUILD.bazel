@@ -1,0 +1,19 @@
+# platform/BUILD
+
+package(default_visibility = ["//visibility:public"])
+
+# https://github.com/gregestren/snippets/tree/master/cc_binary_selectable_copts
+
+load("//bzl/platform:rules.bzl", "arch_opt")
+
+arch_opt(
+    name="arch",
+    build_setting_default = "x86_64"
+)
+
+## now:  bazel build //foo:bar --//platforms:arch="arm"
+
+# constraint_setting(name = "xarch")
+# constraint_value(constraint_setting = ":xarch",
+#                  name = "xarm")
+

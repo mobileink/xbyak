@@ -735,7 +735,9 @@ int main(int argc, char *[])
 	bool only64bit = argc == 2;
 	putOpmask(only64bit);
 	putBroadcast(only64bit);
-	if (only64bit) return 0;
+	if (only64bit) {
+		return 0;
+	}
 	putVcmp();
 	putX_XM();
 	putM_X();

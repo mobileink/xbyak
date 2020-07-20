@@ -24,7 +24,9 @@
 
 // #define XBYAK_DISABLE_AVX512
 
-//#define XBYAK_USE_MMAP_ALLOCATOR
+#if !defined(XBYAK_USE_MMAP_ALLOCATOR) && !defined(XBYAK_DONT_USE_MMAP_ALLOCATOR)
+	#define XBYAK_USE_MMAP_ALLOCATOR
+#endif
 #if !defined(__GNUC__) || defined(__MINGW32__)
 	#undef XBYAK_USE_MMAP_ALLOCATOR
 #endif
@@ -78,9 +80,12 @@
 	#include <sys/mman.h>
 	#include <stdlib.h>
 #endif
-#if defined(__APPLE__) && defined(MAP_JIT)
+#if defined(__APPLE__) && !defined(XBYAK_DONT_USE_MAP_JIT)
 	#define XBYAK_USE_MAP_JIT
 	#include <sys/sysctl.h>
+	#ifndef MAP_JIT
+		#define MAP_JIT 0x800
+	#endif
 #endif
 #if !defined(_MSC_VER) || (_MSC_VER >= 1600)
 	#include <stdint.h>
@@ -115,7 +120,7 @@ namespace Xbyak {
 
 enum {
 	DEFAULT_MAX_CODE_SIZE = 4096,
-	VERSION = 0x5910 /* 0xABCD = A.BC(D) */
+	VERSION = 0x5920 /* 0xABCD = A.BC(D) */
 };
 
 #ifndef MIE_INTEGER_TYPE_DEFINED
@@ -189,6 +194,7 @@ enum {
 	ERR_INVALID_RIP_IN_AUTO_GROW,
 	ERR_INVALID_MIB_ADDRESS,
 	ERR_X2APIC_IS_NOT_SUPPORTED,
+	ERR_NOT_SUPPORTED,
 	ERR_INTERNAL // Put it at last.
 };
 
@@ -250,6 +256,7 @@ public:
 			"invalid rip in AutoGrow",
 			"invalid mib address",
 			"x2APIC is not supported",
+			"not supported",
 			"internal error"
 		};
 		assert(err_ <= ERR_INTERNAL);
@@ -392,8 +399,8 @@ class Reg;
 class Operand {
 	static const uint8 EXT8BIT = 0x20;
 	unsigned int idx_:6; // 0..31 + EXT8BIT = 1 if spl/bpl/sil/dil
-	unsigned int kind_:9;
-	unsigned int bit_:10;
+	unsigned int kind_:10;
+	unsigned int bit_:14;
 protected:
 	unsigned int zero_:1;
 	unsigned int mask_:3;
@@ -410,7 +417,8 @@ public:
 		YMM = 1 << 5,
 		ZMM = 1 << 6,
 		OPMASK = 1 << 7,
-		BNDREG = 1 << 8
+		BNDREG = 1 << 8,
+		TMM = 1 << 9
 	};
 	enum Code {
 #ifdef XBYAK64
@@ -440,6 +448,7 @@ public:
 	bool isXMM() const { return is(XMM); }
 	bool isYMM() const { return is(YMM); }
 	bool isZMM() const { return is(ZMM); }
+	bool isTMM() const { return is(TMM); }
 	bool isXMEM() const { return is(XMM | MEM); }
 	bool isYMEM() const { return is(YMM | MEM); }
 	bool isZMEM() const { return is(ZMM | MEM); }
@@ -458,9 +467,9 @@ public:
 	int getRounding() const { return rounding_; }
 	void setKind(Kind kind)
 	{
-		if ((kind & (XMM|YMM|ZMM)) == 0) return;
+		if ((kind & (XMM|YMM|ZMM|TMM)) == 0) return;
 		kind_ = kind;
-		bit_ = kind == XMM ? 128 : kind == YMM ? 256 : 512;
+		bit_ = kind == XMM ? 128 : kind == YMM ? 256 : kind == ZMM ? 512 : 8192;
 	}
 	// err if MMX/FPU/OPMASK/BNDREG
 	void setBit(int bit);
@@ -508,6 +517,11 @@ public:
 		} else if (isOPMASK()) {
 			static const char *tbl[8] = { "k0", "k1", "k2", "k3", "k4", "k5", "k6", "k7" };
 			return tbl[idx];
+		} else if (isTMM()) {
+			static const char *tbl[8] = {
+				"tmm0", "tmm1", "tmm2", "tmm3", "tmm4", "tmm5", "tmm6", "tmm7"
+			};
+			return tbl[idx];
 		} else if (isZMM()) {
 			static const char *tbl[32] = {
 				"zmm0", "zmm1", "zmm2", "zmm3", "zmm4", "zmm5", "zmm6", "zmm7", "zmm8", "zmm9", "zmm10", "zmm11", "zmm12", "zmm13", "zmm14", "zmm15",
@@ -547,13 +561,13 @@ public:
 
 inline void Operand::setBit(int bit)
 {
-	if (bit != 8 && bit != 16 && bit != 32 && bit != 64 && bit != 128 && bit != 256 && bit != 512) goto ERR;
+	if (bit != 8 && bit != 16 && bit != 32 && bit != 64 && bit != 128 && bit != 256 && bit != 512 && bit != 8192) goto ERR;
 	if (isBit(bit)) return;
 	if (is(MEM | OPMASK)) {
 		bit_ = bit;
 		return;
 	}
-	if (is(REG | XMM | YMM | ZMM)) {
+	if (is(REG | XMM | YMM | ZMM | TMM)) {
 		int idx = getIdx();
 		// err if converting ah, bh, ch, dh
 		if (isREG(8) && (4 <= idx && idx < 8) && !isExt8bit()) goto ERR;
@@ -575,6 +589,7 @@ inline void Operand::setBit(int bit)
 		case 128: kind = XMM; break;
 		case 256: kind = YMM; break;
 		case 512: kind = ZMM; break;
+		case 8192: kind = TMM; break;
 		}
 		idx_ = idx;
 		kind_ = kind;
@@ -668,6 +683,12 @@ struct Zmm : public Ymm {
 	explicit Zmm(int idx = 0) : Ymm(idx, Operand::ZMM, 512) { }
 	Zmm operator|(const EvexModifierRounding& emr) const { Zmm r(*this); r.setRounding(emr.rounding); return r; }
 };
+
+#ifdef XBYAK64
+struct Tmm : public Reg {
+	explicit Tmm(int idx = 0, Kind kind = Operand::TMM, int bit = 8192) : Reg(idx, kind, bit) { }
+};
+#endif
 
 struct Opmask : public Reg {
 	explicit Opmask(int idx = 0) : Reg(idx, Operand::OPMASK, 64) {}
@@ -777,7 +798,7 @@ public:
 		: scale_(scale)
 		, disp_(0)
 	{
-		if (!r.isREG(i32e) && !r.is(Reg::XMM|Reg::YMM|Reg::ZMM)) throw Error(ERR_BAD_SIZE_OF_REGISTER);
+		if (!r.isREG(i32e) && !r.is(Reg::XMM|Reg::YMM|Reg::ZMM|Reg::TMM)) throw Error(ERR_BAD_SIZE_OF_REGISTER);
 		if (scale == 0) return;
 		if (scale != 1 && scale != 2 && scale != 4 && scale != 8) throw Error(ERR_BAD_SCALE);
 		if (r.getBit() >= 128 || scale != 1) { // xmm/ymm is always index
@@ -1480,7 +1501,7 @@ private:
 	CodeGenerator operator=(const CodeGenerator&); // don't call
 #ifdef XBYAK64
 	enum { i32e = 32 | 64, BIT = 64 };
-	static const size_t dummyAddr = (size_t(0x11223344) << 32) | 55667788;
+	static const uint64 dummyAddr = uint64(0x1122334455667788ull);
 	typedef Reg64 NativeReg;
 #else
 	enum { i32e = 32, BIT = 32 };
@@ -1675,9 +1696,9 @@ private:
 	}
 	void setSIB(const RegExp& e, int reg, int disp8N = 0)
 	{
-		size_t disp64 = e.getDisp();
+		uint64 disp64 = e.getDisp();
 #ifdef XBYAK64
-		size_t high = disp64 >> 32;
+		uint64 high = disp64 >> 32;
 		if (high != 0 && high != 0xFFFFFFFF) throw Error(ERR_OFFSET_IS_TOO_BIG);
 #endif
 		uint32 disp = static_cast<uint32>(disp64);
@@ -1980,12 +2001,12 @@ private:
 	/*
 		mov(r, imm) = db(imm, mov_imm(r, imm))
 	*/
-	int mov_imm(const Reg& reg, size_t imm)
+	int mov_imm(const Reg& reg, uint64 imm)
 	{
 		int bit = reg.getBit();
 		const int idx = reg.getIdx();
 		int code = 0xB0 | ((bit == 8 ? 0 : 1) << 3);
-		if (bit == 64 && (imm & ~size_t(0xffffffffu)) == 0) {
+		if (bit == 64 && (imm & ~uint64(0xffffffffu)) == 0) {
 			rex(Reg32(idx));
 			bit = 32;
 		} else {
@@ -2245,6 +2266,15 @@ private:
 		}
 		throw Error(ERR_BAD_COMBINATION);
 	}
+#ifdef XBYAK64
+	void opAMX(const Tmm& t1, const Address& addr, int type, int code0)
+	{
+		// require both base and index
+		const RegExp exp = addr.getRegExp(false);
+		if (exp.getBase().getBit() == 0 || exp.getIndex().getBit() == 0) throw Error(ERR_NOT_SUPPORTED);
+		opVex(t1, &tmm0, addr, type, code0);
+	}
+#endif
 public:
 	unsigned int getVersion() const { return VERSION; }
 	using CodeArray::db;
@@ -2280,6 +2310,7 @@ public:
 	const Zmm zmm8, zmm9, zmm10, zmm11, zmm12, zmm13, zmm14, zmm15;
 	const Zmm zmm16, zmm17, zmm18, zmm19, zmm20, zmm21, zmm22, zmm23;
 	const Zmm zmm24, zmm25, zmm26, zmm27, zmm28, zmm29, zmm30, zmm31;
+	const Tmm tmm0, tmm1, tmm2, tmm3, tmm4, tmm5, tmm6, tmm7;
 	const Xmm &xm8, &xm9, &xm10, &xm11, &xm12, &xm13, &xm14, &xm15; // for my convenience
 	const Xmm &xm16, &xm17, &xm18, &xm19, &xm20, &xm21, &xm22, &xm23;
 	const Xmm &xm24, &xm25, &xm26, &xm27, &xm28, &xm29, &xm30, &xm31;
@@ -2420,7 +2451,7 @@ public:
 			opRM_RM(reg1, reg2, 0x88);
 		}
 	}
-	void mov(const Operand& op, size_t imm)
+	void mov(const Operand& op, uint64 imm)
 	{
 		if (op.isREG()) {
 			const int size = mov_imm(op.getReg(), imm);
@@ -2561,6 +2592,7 @@ public:
 		, zmm8(8), zmm9(9), zmm10(10), zmm11(11), zmm12(12), zmm13(13), zmm14(14), zmm15(15)
 		, zmm16(16), zmm17(17), zmm18(18), zmm19(19), zmm20(20), zmm21(21), zmm22(22), zmm23(23)
 		, zmm24(24), zmm25(25), zmm26(26), zmm27(27), zmm28(28), zmm29(29), zmm30(30), zmm31(31)
+		, tmm0(0), tmm1(1), tmm2(2), tmm3(3), tmm4(4), tmm5(5), tmm6(6), tmm7(7)
 		// for my convenience
 		, xm8(xmm8), xm9(xmm9), xm10(xmm10), xm11(xmm11), xm12(xmm12), xm13(xmm13), xm14(xmm14), xm15(xmm15)
 		, xm16(xmm16), xm17(xmm17), xm18(xmm18), xm19(xmm19), xm20(xmm20), xm21(xmm21), xm22(xmm22), xm23(xmm23)
@@ -2697,6 +2729,7 @@ static const Ymm ymm24(24), ymm25(25), ymm26(26), ymm27(27), ymm28(28), ymm29(29
 static const Zmm zmm8(8), zmm9(9), zmm10(10), zmm11(11), zmm12(12), zmm13(13), zmm14(14), zmm15(15);
 static const Zmm zmm16(16), zmm17(17), zmm18(18), zmm19(19), zmm20(20), zmm21(21), zmm22(22), zmm23(23);
 static const Zmm zmm24(24), zmm25(25), zmm26(26), zmm27(27), zmm28(28), zmm29(29), zmm30(30), zmm31(31);
+static const Tmm tmm0(0), tmm1(1), tmm2(2), tmm3(3), tmm4(4), tmm5(5), tmm6(6), tmm7(7);
 static const RegRip rip;
 #endif
 #ifndef XBYAK_DISABLE_SEGMENT
