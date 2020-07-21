@@ -11,6 +11,16 @@ CFLAGS = ["-O2", "-fomit-frame-pointer",
           "-Wall", "-fno-operator-names",
           "-I.", "-Itest"] + CFLAGS_WARN #-std=c++0x
 
+config_setting(
+    name = "is_64bit",
+    constraint_values = ["@platforms//cpu:x86_64"]
+)
+
+config_setting(
+    name = "is_32bit",
+    constraint_values = ["@platforms//cpu:x86_32"]
+)
+
 cc_test(
     name = "make_nm",
     visibility = ["//visibility:public"],
@@ -39,7 +49,11 @@ cc_test(
 cc_test(
     name = "jmp",
     visibility = ["//visibility:public"],
-    copts = CFLAGS,
+    copts = CFLAGS
+    + select({
+        ":is_64bit": ["-m64"],
+        "//conditions:default"   : []
+    }),
     srcs = ["jmp.cpp",
             "cybozu/inttype.hpp",
             "cybozu/test.hpp"],
@@ -49,7 +63,11 @@ cc_test(
 cc_test(
     name = "address",
     visibility = ["//visibility:public"],
-    copts = CFLAGS,
+    copts = CFLAGS
+    + select({
+        ":is_64bit": ["-m64"],
+        "//conditions:default"   : []
+    }),
     srcs = ["address.cpp"],
     deps = ["//xbyak"]
 )
@@ -77,6 +95,10 @@ cc_test(
     name = "cvt_test",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
+    defines = select({
+        ":is_32bit": ["XBYAK32"],
+        "//conditions:default"   : []
+    }),
     srcs = ["cvt_test.cpp",
             "cybozu/inttype.hpp",
             "cybozu/test.hpp"
@@ -85,13 +107,10 @@ cc_test(
 )
 
 cc_test(
-    name = "cvt_test32",
+    name = "noexception",
     visibility = ["//visibility:public"],
-    copts = CFLAGS + ["-DXBYAK32"],
-    srcs = ["cvt_test.cpp",
-            "cybozu/inttype.hpp",
-            "cybozu/test.hpp"
-    ],
+    copts = CFLAGS,
+    srcs = ["noexception.cpp"],
     deps = ["//xbyak"]
 )
 
@@ -104,4 +123,11 @@ cc_test(
 #             ":cvt_test32"]
 #     data = ["test_nm.sh",
 #             "test_address.sh"],
+# )
+
+# sh_test(
+#     name = "nm",
+#     srcs = ["test_nm.sh"],
+#     deps = [":foo_sh_lib"],
+#     data = glob(["testdata/*.txt"]),
 # )
