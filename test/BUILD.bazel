@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -11,7 +11,7 @@ CFLAGS = ["-O2", "-fomit-frame-pointer",
           "-Wall", "-fno-operator-names",
           "-I.", "-Itest"] + CFLAGS_WARN #-std=c++0x
 
-cc_binary(
+cc_test(
     name = "make_nm",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
@@ -19,7 +19,7 @@ cc_binary(
     deps = ["//xbyak"]
 )
 
-cc_binary(
+cc_test(
     name = "normalize_prefix",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
@@ -36,7 +36,7 @@ cc_binary(
 #     deps = ["//xbyak"]
 # )
 
-cc_binary(
+cc_test(
     name = "jmp",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
@@ -46,7 +46,7 @@ cc_binary(
     deps = ["//xbyak"]
 )
 
-cc_binary(
+cc_test(
     name = "address",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
@@ -54,7 +54,7 @@ cc_binary(
     deps = ["//xbyak"]
 )
 
-cc_binary(
+cc_test(
     name = "bad_address",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
@@ -63,7 +63,7 @@ cc_binary(
     deps = ["//xbyak"]
 )
 
-cc_binary(
+cc_test(
     name = "misc",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
@@ -73,7 +73,7 @@ cc_binary(
     deps = ["//xbyak"]
 )
 
-cc_binary(
+cc_test(
     name = "cvt_test",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
@@ -84,7 +84,7 @@ cc_binary(
     deps = ["//xbyak"]
 )
 
-cc_binary(
+cc_test(
     name = "cvt_test32",
     visibility = ["//visibility:public"],
     copts = CFLAGS + ["-DXBYAK32"],
