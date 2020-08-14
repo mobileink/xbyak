@@ -48,6 +48,24 @@ Linux:
 
 These files are copied into /usr/local/include/xbyak
 
+Bazel
+-------------
+
+Add the following to your WORKSPACE file:
+
+```
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "xbyak",
+    urls = ["https://github.com/obazl/xbyak/archive/bzl-1.0.tar.gz"],
+    strip_prefix = "xbyak-bzl-1.0",
+    # sha256 = get this from github
+)
+```
+
+Then in your BUILD.bazel files add `"@xbyak//xbyak"` to your cc_* dependencies lists.
+
+
 New Feature
 -------------
 
