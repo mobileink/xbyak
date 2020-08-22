@@ -9,7 +9,7 @@ CFLAGS_WARN = ["-Wall", "-Wextra", "-Wformat=2",
 
 CFLAGS = ["-O2", "-fomit-frame-pointer",
           "-Wall", "-fno-operator-names",
-          "-I.", "-Itest"] + CFLAGS_WARN #-std=c++0x
+          "-I.", "-Itest", "-Iexternal/xbyak"] + CFLAGS_WARN #-std=c++0x
 
 test_suite(
     name = "test",
@@ -29,8 +29,8 @@ cc_test(
     name = "make_nm",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
-    srcs = ["make_nm.cpp", "cybozu/inttype.hpp"],
-    deps = ["//xbyak"]
+    srcs = ["make_nm.cpp"],
+    deps = ["//xbyak", "//test/cybozu"]
 )
 
 cc_test(
@@ -53,11 +53,9 @@ cc_test(
 cc_test(
     name = "jmp",
     visibility = ["//visibility:public"],
-    copts = CFLAGS,
-    srcs = ["jmp.cpp",
-            "cybozu/inttype.hpp",
-            "cybozu/test.hpp"],
-    deps = ["//xbyak"]
+    copts = CFLAGS + ["-Iexternal/xbyak/test"],
+    srcs = ["jmp.cpp"],
+    deps = ["//xbyak", "//test/cybozu"]
 )
 
 cc_test(
@@ -72,19 +70,16 @@ cc_test(
     name = "bad_address",
     visibility = ["//visibility:public"],
     copts = CFLAGS,
-    srcs = ["bad_address.cpp",
-            "cybozu/test.hpp"],
-    deps = ["//xbyak"]
+    srcs = ["bad_address.cpp"],
+    deps = ["//xbyak", "//test/cybozu"]
 )
 
 cc_test(
     name = "misc",
     visibility = ["//visibility:public"],
-    copts = CFLAGS,
-    srcs = ["misc.cpp",
-            "cybozu/inttype.hpp",
-            "cybozu/test.hpp"],
-    deps = ["//xbyak"]
+    copts = CFLAGS + ["-Iexternal/xbyak/test"],
+    srcs = ["misc.cpp"],
+    deps = ["//xbyak", "//test/cybozu"]
 )
 
 cc_test(
@@ -92,10 +87,8 @@ cc_test(
     visibility = ["//visibility:public"],
     copts = CFLAGS,
     srcs = ["cvt_test.cpp",
-            "cybozu/inttype.hpp",
-            "cybozu/test.hpp"
     ],
-    deps = ["//xbyak"]
+    deps = ["//xbyak", "//test/cybozu"]
 )
 
 cc_test(
@@ -103,10 +96,8 @@ cc_test(
     visibility = ["//visibility:public"],
     copts = CFLAGS + ["-DXBYAK32"],
     srcs = ["cvt_test.cpp",
-            "cybozu/inttype.hpp",
-            "cybozu/test.hpp"
     ],
-    deps = ["//xbyak"]
+    deps = ["//xbyak", "//test/cybozu"]
 )
 
 # genrule(
