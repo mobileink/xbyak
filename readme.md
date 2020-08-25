@@ -37,25 +37,11 @@ and_(), or_(), xor_(), not_() are always available.
 Install
 -------------
 
-## Bazel
+#### Bazel
 
-Clone the repo, then:
+See [doc/bazel.md](doc/bazel.md) for instructions.
 
-```
-$ bazel test test
-```
-
-All tests succeed on linux, test:jmp fails on MacOS.
-
-You can also run the samples:
-
-```
-$ bazel run sample:<target>
-```
-
-where <target> = bf | calc | jmp_table | memfunc | quantize | static_buf | test | test_util | toyvm
-
-## Legacy
+#### Legacy
 
 The following files are necessary. Please add the path to your compile directories.
 
