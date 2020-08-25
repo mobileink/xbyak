@@ -32,6 +32,7 @@ test_suite(
         ":make_nm",
         ":misc",
         ":normalize_prefix"
+        ":lib_run"
     ]
 )
 
@@ -129,6 +130,16 @@ cc_test(
     srcs = ["cvt_test.cpp"],
     deps = ["//xbyak", "//test/cybozu"]
 )
+
+cc_test(
+    name = "lib_run",
+    visibility = ["//visibility:public"],
+    size = "small",
+    copts = CFLAGS + ["-DXBYAK32"],
+    srcs = ["lib_test.cpp", "lib_run.cpp", "lib.h"],
+    deps = ["//xbyak", "//test/cybozu"]
+)
+
 
 ## not implemented: test_nm, test_avx, test_avx512
 ## these involve shell scripts, see Makefile
