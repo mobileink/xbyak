@@ -1,11 +1,9 @@
-## Copy this file to the root directory and edit to taste. Do NOT
-## check it into version control. The root .bazelrc file contains a
-## line that loads user.bazelrc if it exists
+## Copy this file to 'user.bazelrc' in the root directory and edit to
+## taste. Do NOT check it into version control. The root .bazelrc file
+## contains a line that loads user.bazelrc if it exists.
 
 ## See https://docs.bazel.build/versions/master/guide.html#bazelrc-the-bazel-configuration-file
-
 ## Best practices: https://docs.bazel.build/versions/master/best-practices.html#bazelrc
-
 ## Command line ref: https://docs.bazel.build/versions/master/command-line-reference.html
 
 ################################################################
@@ -25,5 +23,7 @@ build --sandbox_debug
 # build --keep_going  # Continue as much as possible after an error
 # build --jobs 600 # default is "auto" = calculates a reasonable default based on host resources
 
+# query --noimplicit_deps
+# query --notool_deps
 # query --keep_going
 
