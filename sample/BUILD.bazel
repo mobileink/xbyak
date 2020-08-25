@@ -93,11 +93,17 @@ cc_binary( name = "calc",
                    "@boost//:bind"]
 )
 
-cc_binary( name = "calc2",
-           visibility = ["//visibility:public"],
-           srcs = ["calc2.cpp"],
-           copts = ["-Iboost"] + CFLAGS,
-           deps = ["//xbyak",
-                   "@boost//:spirit",
-                   "@boost//:bind"]
-)
+## error: call to 'ref' is ambiguous
+# cc_binary( name = "calc2",
+#            visibility = ["//visibility:public"],
+#            srcs = ["calc2.cpp"],
+#            copts = ["-Iboost"] + CFLAGS,
+#            deps = ["//xbyak",
+#                    "@boost//:bind",
+#                    "@boost//:foreach",
+#                    "@boost//:function",
+#                    "@boost//:spirit",
+#                    "@boost//:phoenix",
+#                    "@boost//:iostreams",
+#                    "@boost//:variant"]
+# )
