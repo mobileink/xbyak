@@ -12,12 +12,6 @@ CFLAGS = ["-g", "-O2",
           "-I.",
           "-Wall"] + CFLAGS_WARN
 
-# + select({
-#               # -m64 not needed on mac; bazel will autodetect
-#               # "//:x86_64": ["-m64"]
-#               "//conditions:default": []
-          # })
-
 cc_binary( name = "test",
            visibility = ["//visibility:public"],
            srcs = glob(["test0.cpp"]),
@@ -99,7 +93,6 @@ cc_binary( name = "calc",
                    "@boost//:spirit",
                    "@boost//:bind"]
 )
-<<<<<<< HEAD
 
 cc_binary( name = "profiler",
            visibility = ["//visibility:public"],
@@ -116,6 +109,3 @@ cc_binary( name = "profiler",
 #            deps = ["//xbyak",
 #                    "//:vtune"  ## TODO
 #            ] )
-
-=======
->>>>>>> master

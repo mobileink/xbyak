@@ -1,14 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-
-package(default_visibility = ["//visibility:public"])
-
-# load("//config:variables.bzl", "CSTD", "DEFINES", "OS_COPTS")
-
-# "Although Bazel allows a package at the build root (e.g. //:foo),
-# this is not advised and projects should attempt to use more
-# descriptively named packages."
-# (https://docs.bazel.build/versions/master/build-ref.html#labels)
-
 platform(
     name = "x86_64-unknown-linux-gnu",
     constraint_values = [

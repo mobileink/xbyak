@@ -33,7 +33,7 @@ files.
 
 **Original readme:**
 
-# Xbyak 5.93 ; JIT assembler for x86(IA32), x64(AMD64, x86-64) by C++
+# Xbyak 5.941 ; JIT assembler for x86(IA32), x64(AMD64, x86-64) by C++
 
 ## Abstract
 
@@ -49,6 +49,9 @@ Use `and_()`, `or_()`, ... instead of `and()`, `or()`.
 If you want to use them, then specify `-fno-operator-names` option to gcc/clang.
 
 ### News
+
+=======
+- (Windows) `#include <winsock2.h>` has been removed from xbyak.h, so add it explicitly if you need it.
 - support exception-less mode see. [Exception-less mode](#exception-less-mode)
 - `XBYAK_USE_MMAP_ALLOCATOR` will be defined on Linux/macOS unless `XBYAK_DONT_USE_MMAP_ALLOCATOR` is defined.
 
@@ -64,6 +67,8 @@ Almost C++03 or later compilers for x86/x64 such as Visual Studio, g++, clang++,
 
 ## Install
 
+=======
+
 The following files are necessary. Please add the path to your compile directory.
 
 * xbyak.h
@@ -75,7 +80,26 @@ Linux:
 make install
 ```
 
-These files are copied into `/usr/local/include/xbyak`.
+    make install
+
+These files are copied into /usr/local/include/xbyak
+
+Bazel
+-------------
+
+Add the following to your WORKSPACE file:
+
+```
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "xbyak",
+    urls = ["https://github.com/obazl/xbyak/archive/bzl-1.0.tar.gz"],
+    strip_prefix = "xbyak-bzl-1.0",
+    # sha256 = get this from github
+)
+```
+
+Then in your BUILD.bazel files add `"@xbyak//xbyak"` to your cc_* dependencies lists.
 
 ## How to use it
 
@@ -139,6 +163,7 @@ inc qword [rax]    --> inc(qword [rax]);
 mov eax, [fs:eax] --> putSeg(fs);
                       mov(eax, ptr [eax]);
 mov ax, cs        --> mov(ax, cs);
+
 ```
 **Note**: Segment class is not derived from `Operand`.
 
@@ -443,6 +468,7 @@ See [protect-re.cpp](sample/protect-re.cpp).
 If `XBYAK_NO_EXCEPTION` is defined, then gcc/clang can compile xbyak with `-fno-exceptions`.
 In stead of throwing an exception, `Xbyak::GetError()` returns non-zero value (e.g. `ERR_BAD_ADDRESSING`) if there is something wrong.
 The status will not be changed automatically, then you should reset it by `Xbyak::ClearError()`.
+`CodeGenerator::reset()` calls `ClearError()`.
 
 ## Macro
 
@@ -468,6 +494,9 @@ modified new BSD License
 http://opensource.org/licenses/BSD-3-Clause
 
 ## History
+* 2020/Aug/14          Insert Bazel support commit at tag bzl-1.0, with parent f0a8f7f
+* 2020/Aug/04 ver 5.941 `CodeGenerator::reset()` calls `ClearError()`.
+* 2020/Jul/28 ver 5.94 remove #include <winsock2.h> (only windows)
 * 2020/Jul/21 ver 5.93 support exception-less mode
 * 2020/Jun/30 ver 5.92 support Intel AMX instruction set (Thanks to nshustrov)
 * 2020/Jun/22 ver 5.913 fix mov(r64, imm64) on 32-bit env with XBYAK64

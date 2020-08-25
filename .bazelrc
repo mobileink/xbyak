@@ -1,9 +1,4 @@
 # enable platform-based toolchain resolution:
 build --incompatible_enable_cc_toolchain_resolution
 
-query --noimplicit_deps
-query --notool_deps
-
-build --color=yes
-
 try-import user.bazelrc
